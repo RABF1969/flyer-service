@@ -1,4 +1,4 @@
-# 🎉 Flyer Service
+# 🎉 Flyer Service 1.0
 
 🚀 Serviço para geração automática de flyers personalizados de aniversariantes.  
 
