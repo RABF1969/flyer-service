@@ -1,19 +1,32 @@
-FROM node:20-alpine
+# ===========================
+#  Etapa 1 - Build
+# ===========================
+FROM node:18-alpine AS build
 
-# define diretório de trabalho
-WORKDIR /usr/src/app
+# Criar diretório de trabalho
+WORKDIR /app
 
-# copia package.json e instala dependências
+# Copiar package.json e package-lock.json
 COPY package*.json ./
+
+# Instalar dependências (sem dev se quiser mais leve: npm ci --omit=dev)
 RUN npm install --production
 
-# copia o restante do código
+# Copiar todos os arquivos do projeto
 COPY . .
 
-# cria pastas de saída
-RUN mkdir -p /usr/src/app/out
+# ===========================
+#  Etapa 2 - Produção
+# ===========================
+FROM node:18-alpine
 
-# expõe porta do servidor
+WORKDIR /app
+
+# Copiar apenas node_modules e o código do build
+COPY --from=build /app /app
+
+# Expor a porta usada pelo server.js
 EXPOSE 3000
 
+# Comando para iniciar
 CMD ["node", "server.js"]
