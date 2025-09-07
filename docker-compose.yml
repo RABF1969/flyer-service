@@ -2,13 +2,20 @@ version: "3.9"
 
 services:
   flyer-service:
-    build: .
-    container_name: flyer-service
-    restart: always
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./out:/usr/src/app/out   # saída dos flyers
-      - ./assets:/usr/src/app/assets # base e fotos
-    environment:
-      - NODE_ENV=production
+    image: alfabiz2025/flyer-service:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.flyer.rule=Host(`flyer.alfabiz.com.br`)" # 🔥 seu subdomínio
+        - "traefik.http.routers.flyer.entrypoints=websecure"
+        - "traefik.http.routers.flyer.tls.certresolver=letsencryptresolver"       # 🔥 troque pelo seu certresolver
+        - "traefik.http.services.flyer.loadbalancer.server.port=3000"    # porta interna do app
+    networks:
+      - network_public
+
+networks:
+  network_public:
+    external: true
