@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  flyer-service:
+    build: .
+    container_name: flyer-service
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./out:/usr/src/app/out   # saída dos flyers
+      - ./assets:/usr/src/app/assets # base e fotos
+    environment:
+      - NODE_ENV=production
