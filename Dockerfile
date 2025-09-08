@@ -1,32 +1,20 @@
-# ===========================
-#  Etapa 1 - Build
-# ===========================
-FROM node:18-alpine AS build
-
-# Criar diretório de trabalho
-WORKDIR /app
-
-# Copiar package.json e package-lock.json
-COPY package*.json ./
-
-# Instalar dependências (sem dev se quiser mais leve: npm ci --omit=dev)
-RUN npm install --production
-
-# Copiar todos os arquivos do projeto
-COPY . .
-
-# ===========================
-#  Etapa 2 - Produção
-# ===========================
+# Usa Node 18 (LTS)
 FROM node:18-alpine
 
+# Define diretório de trabalho
 WORKDIR /app
 
-# Copiar apenas node_modules e o código do build
-COPY --from=build /app /app
+# Copia package.json e package-lock.json primeiro (cache otimizado)
+COPY package*.json ./
 
-# Expor a porta usada pelo server.js
+# Instala dependências de produção
+RUN npm install --only=production
+
+# Copia o restante do código
+COPY . .
+
+# Expõe a porta do servidor
 EXPOSE 3000
 
-# Comando para iniciar
+# Comando de inicialização
 CMD ["node", "server.js"]
