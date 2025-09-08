@@ -3,39 +3,36 @@ const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
 
-// === CONFIGURAÇÃO DO LAYOUT ==================================
+// === CONFIGURAÇÃO DO LAYOUT ================================================
 const CANVAS_W = 1080;
 const CANVAS_H = 1350;
 
-// círculo da foto
 const FOTO_SIZE = 535;
 const FOTO_X = (CANVAS_W - FOTO_SIZE) / 2;
 const FOTO_Y = 260;
 
-// nome
 const NOME_Y = 910;
 const NOME_MAX_FONT = 64;
 const NOME_MIN_FONT = 36;
 const NOME_COLOR = "#1f2937";
-const NOME_FONT = "Poppins, Inter, Arial, Helvetica, sans-serif";
-// =============================================================
+
+// caminho da fonte local (🔥 coloque sua fonte em assets/fonts/)
+const FONT_PATH = path.resolve(__dirname, "assets/fonts/Poppins-Bold.ttf");
+
+// ===========================================================================
 
 async function gerarFlyer({ nome, fotoBufferOrPath, outPath }) {
+  // foto pode vir como Buffer ou como path
   let fotoBuffer;
-
   if (Buffer.isBuffer(fotoBufferOrPath)) {
-    // já veio pronto (fetch remoto)
     fotoBuffer = fotoBufferOrPath;
-  } else if (typeof fotoBufferOrPath === "string") {
-    // veio caminho do arquivo (teste local)
+  } else {
     fotoBuffer = await sharp(fotoBufferOrPath)
       .resize(FOTO_SIZE, FOTO_SIZE, { fit: "cover" })
       .toBuffer();
-  } else {
-    throw new Error("fotoBufferOrPath inválido.");
   }
 
-  // cria máscara circular
+  // máscara circular
   const mask = Buffer.from(
     `<svg width="${FOTO_SIZE}" height="${FOTO_SIZE}">
        <circle cx="${FOTO_SIZE / 2}" cy="${FOTO_SIZE / 2}" r="${FOTO_SIZE / 2}" fill="white"/>
@@ -48,21 +45,25 @@ async function gerarFlyer({ nome, fotoBufferOrPath, outPath }) {
     .png()
     .toBuffer();
 
-  // calcula fonte pelo tamanho do nome
+  // calcula tamanho da fonte
   const idealByLength = Math.max(
     NOME_MIN_FONT,
     Math.min(NOME_MAX_FONT, Math.floor(700 / Math.max(nome.length, 10)))
   );
 
-  // SVG do nome
+  // svg do texto com font-face embutido
   const svgNome = Buffer.from(
     `<svg width="${CANVAS_W}" height="${CANVAS_H}">
       <style>
+        @font-face {
+          font-family: 'PoppinsCustom';
+          src: url('file://${FONT_PATH}');
+        }
         .nome {
-          font-family: ${NOME_FONT};
-          font-weight: 700;
+          font-family: 'PoppinsCustom';
+          font-weight: bold;
           fill: ${NOME_COLOR};
-          text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
       </style>
       <text x="${CANVAS_W / 2}" y="${NOME_Y}" font-size="${idealByLength}" class="nome"
@@ -72,7 +73,7 @@ async function gerarFlyer({ nome, fotoBufferOrPath, outPath }) {
     </svg>`
   );
 
-  // junta no flyer base
+  // compor
   const base = path.resolve(__dirname, "assets/flyer_base.png");
   const finalBuffer = await sharp(base)
     .composite([
@@ -82,18 +83,13 @@ async function gerarFlyer({ nome, fotoBufferOrPath, outPath }) {
     .png()
     .toBuffer();
 
-  // salva no disco (se for teste local)
   if (outPath) {
-    if (!fs.existsSync(path.dirname(outPath))) {
-      fs.mkdirSync(path.dirname(outPath), { recursive: true });
-    }
     fs.writeFileSync(outPath, finalBuffer);
   }
 
   return finalBuffer;
 }
 
-// escape de caracteres especiais
 function escapeXml(unsafe) {
   return unsafe
     .replace(/&/g, "&amp;")
@@ -103,20 +99,3 @@ function escapeXml(unsafe) {
 }
 
 module.exports = { gerarFlyer };
-
-// === Teste local =============================================
-// rode: node gerar_flyer.js
-if (require.main === module) {
-  (async () => {
-    try {
-      const out = await gerarFlyer({
-        nome: "Maria Clara",
-        fotoBufferOrPath: path.resolve(__dirname, "assets/fotos/exemplo.jpg"),
-        outPath: path.resolve(__dirname, "out/flyer_final.png"),
-      });
-      console.log("✅ Flyer gerado:", out.length, "bytes");
-    } catch (err) {
-      console.error("❌ Erro no teste local:", err);
-    }
-  })();
-}
