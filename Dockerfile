@@ -1,20 +1,20 @@
-# Usa Node 18 (LTS)
 FROM node:18-alpine
 
-# Define diretório de trabalho
-WORKDIR /app
+# diretório de trabalho
+WORKDIR /usr/src/app
 
-# Copia package.json e package-lock.json primeiro (cache otimizado)
+# copia package.json e instala dependências
 COPY package*.json ./
+RUN npm install --production
 
-# Instala dependências de produção
-RUN npm install --only=production
-
-# Copia o restante do código
+# copia todo o código e assets (incluindo fontes!)
 COPY . .
 
-# Expõe a porta do servidor
+# cria pasta de saída (se precisar salvar flyers no disco)
+RUN mkdir -p /usr/src/app/out
+
+# expõe a porta
 EXPOSE 3000
 
-# Comando de inicialização
+# inicia o servidor
 CMD ["node", "server.js"]
