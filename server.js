@@ -1,32 +1,24 @@
-// src/server.js
+// server.js
 const express = require("express");
 const fetch = require("node-fetch");
-const path = require("path");
 const { gerarFlyer } = require("./gerar_flyer");
 
 const app = express();
 
-// saúde
 app.get("/", (_req, res) => {
   res.type("text/html").send("🚀 Flyer Service rodando!");
 });
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
-/**
- * GET /api/generate?nome=Maria%20Clara&foto_url=https://.../foto.jpg
- * Opcional: ?download=1  -> força Content-Disposition: attachment
- */
+// === endpoint principal ===
 app.get("/api/generate", async (req, res) => {
   try {
     const nome = (req.query.nome || "").toString().trim();
     const fotoUrl = (req.query.foto_url || "").toString().trim();
 
-    if (!nome) {
-      return res.status(400).json({ error: "Parametro 'nome' é obrigatório." });
-    }
-    if (!fotoUrl) {
-      return res.status(400).json({ error: "Parametro 'foto_url' é obrigatório." });
+    if (!nome || !fotoUrl) {
+      return res.status(400).json({ error: "Parâmetros 'nome' e 'foto_url' são obrigatórios." });
     }
 
     // baixa a foto remota
@@ -36,20 +28,16 @@ app.get("/api/generate", async (req, res) => {
     }
     const fotoBuffer = Buffer.from(await response.arrayBuffer());
 
-    // gera flyer (buffer)
+    // gera flyer
     const buffer = await gerarFlyer({
       nome,
       fotoBufferOrPath: fotoBuffer,
-      outPath: null, // não salvar no disco neste endpoint
+      outPath: null,
     });
 
-    // cabeçalhos
     const filename = `${nome.replace(/\s+/g, "_")}_flyer.png`;
-    if (req.query.download) {
-      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-    } else {
-      res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
-    }
+
+    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Cache-Control", "no-store");
 
@@ -60,7 +48,6 @@ app.get("/api/generate", async (req, res) => {
   }
 });
 
-// porta (container expõe via Traefik)
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Flyer Service ouvindo em :${PORT}`);
