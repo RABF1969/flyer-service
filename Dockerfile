@@ -1,20 +1,23 @@
-FROM node:18-alpine
+# Etapa base
+FROM node:18-slim
 
-# diretório de trabalho
+# Diretório de trabalho
 WORKDIR /usr/src/app
 
-# copia package.json e instala dependências
+# Copia apenas arquivos essenciais primeiro (para aproveitar cache)
 COPY package*.json ./
+
+# Instala dependências de produção
 RUN npm install --production
 
-# copia todo o código e assets (incluindo fontes!)
+# Copia o restante do código
 COPY . .
 
-# cria pasta de saída (se precisar salvar flyers no disco)
+# Cria pasta de saída (mesmo que o código crie dinamicamente, garantimos no build)
 RUN mkdir -p /usr/src/app/out
 
-# expõe a porta
+# Porta interna do serviço
 EXPOSE 3000
 
-# inicia o servidor
-CMD ["node", "server.js"]
+# Comando inicial
+CMD ["npm", "start"]
