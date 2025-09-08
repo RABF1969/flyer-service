@@ -1,14 +1,17 @@
 {
   "name": "flyer-service",
   "version": "1.0.0",
+  "description": "Gerador de flyer (foto+nome) via HTTP",
   "main": "server.js",
+  "type": "commonjs",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "express": "^4.19.2",
     "multer": "^1.4.5-lts.1",
-    "node-fetch": "^2.6.9",
+    "node-fetch": "^3.3.2",
     "sharp": "^0.33.2"
   }
 }

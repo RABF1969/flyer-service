@@ -1,84 +1,64 @@
-// gerar_flyer.js
-const fs = require("fs");
-const path = require("path");
-const sharp = require("sharp");
+// server.js
+const express = require("express");
+const fetch = require("node-fetch");
+const { gerarFlyer } = require("./gerar_flyer");
 
-const CANVAS_W = 1080;
-const CANVAS_H = 1350;
-const FOTO_SIZE = 535;
-const FOTO_X = (CANVAS_W - FOTO_SIZE) / 2;
-const FOTO_Y = 260;
+const app = express();
 
-const NOME_Y = 910;
-const NOME_FONT = "Poppins, Inter, Arial, Helvetica, sans-serif";
-const NOME_COLOR = "#1f2937";
+// Rota de teste (health check)
+app.get("/", (_req, res) => {
+  res.send("🚀 Flyer Service rodando!");
+});
 
-async function gerarFlyer({ nome, fotoBuffer, fotoPath, outPath }) {
-  let fotoBufferFinal;
+app.get("/health", (_req, res) => {
+  res.json({ ok: true });
+});
 
-  if (fotoBuffer) {
-    fotoBufferFinal = await sharp(fotoBuffer)
-      .resize(FOTO_SIZE, FOTO_SIZE, { fit: "cover" })
-      .toBuffer();
-  } else if (fotoPath) {
-    fotoBufferFinal = await sharp(fotoPath)
-      .resize(FOTO_SIZE, FOTO_SIZE, { fit: "cover" })
-      .toBuffer();
-  } else {
-    throw new Error("É necessário fornecer fotoBuffer ou fotoPath");
+/**
+ * GET /api/generate?nome=Maria%20Clara&foto_url=https://.../foto.jpg
+ * Exemplo:
+ *   https://flyer.seuservidor.com/api/generate?nome=Maria%20Clara&foto_url=https://.../foto.png
+ */
+app.get("/api/generate", async (req, res) => {
+  try {
+    const nome = (req.query.nome || "").toString().trim();
+    const fotoUrl = (req.query.foto_url || "").toString().trim();
+
+    if (!nome) {
+      return res.status(400).json({ error: "Parametro 'nome' é obrigatório." });
+    }
+    if (!fotoUrl) {
+      return res.status(400).json({ error: "Parametro 'foto_url' é obrigatório." });
+    }
+
+    // baixa a foto
+    const response = await fetch(fotoUrl);
+    if (!response.ok) {
+      return res.status(400).json({ error: "Não foi possível baixar a foto." });
+    }
+    const fotoBuffer = Buffer.from(await response.arrayBuffer());
+
+    // gera flyer em memória
+    const buffer = await gerarFlyer({
+      nome,
+      fotoBufferOrPath: fotoBuffer,
+      outPath: null
+    });
+
+    // devolve como imagem PNG
+    const filename = `${nome.replace(/\s+/g, "_")}_flyer.png`;
+    res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "no-store");
+
+    return res.send(buffer);
+  } catch (err) {
+    console.error("❌ Erro em /api/generate:", err);
+    return res.status(500).json({ error: "Falha ao gerar flyer." });
   }
+});
 
-  const mask = Buffer.from(
-    `<svg width="${FOTO_SIZE}" height="${FOTO_SIZE}">
-       <circle cx="${FOTO_SIZE / 2}" cy="${FOTO_SIZE / 2}" r="${FOTO_SIZE / 2}" fill="white"/>
-     </svg>`
-  );
-
-  const fotoCircular = await sharp(fotoBufferFinal)
-    .composite([{ input: mask, blend: "dest-in" }])
-    .png()
-    .toBuffer();
-
-  const svgNome = Buffer.from(
-    `<svg width="${CANVAS_W}" height="${CANVAS_H}">
-      <style>
-        .nome {
-          font-family: ${NOME_FONT};
-          font-weight: 700;
-          font-size: 64px;
-          fill: ${NOME_COLOR};
-          text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
-        }
-      </style>
-      <text x="${CANVAS_W / 2}" y="${NOME_Y}" class="nome"
-        text-anchor="middle" dominant-baseline="middle">
-        ${escapeXml(nome)}
-      </text>
-    </svg>`
-  );
-
-  const base = path.resolve(__dirname, "assets/flyer_base.png");
-  const finalBuffer = await sharp(base)
-    .composite([
-      { input: fotoCircular, left: Math.round(FOTO_X), top: Math.round(FOTO_Y) },
-      { input: svgNome, left: 0, top: 0 },
-    ])
-    .png()
-    .toBuffer();
-
-  if (outPath) {
-    fs.writeFileSync(outPath, finalBuffer);
-    return outPath;
-  }
-  return finalBuffer;
-}
-
-function escapeXml(unsafe) {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-module.exports = { gerarFlyer };
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Flyer Service ouvindo em :${PORT}`);
+});
