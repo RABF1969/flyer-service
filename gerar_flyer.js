@@ -3,28 +3,27 @@ const fs = require("fs");
 const path = require("path");
 const sharp = require("sharp");
 
-// === CONFIGURAÇÃO DO LAYOUT ==============================================
+// === CONFIGURAÇÃO DO LAYOUT ==================================
 const CANVAS_W = 1080;
 const CANVAS_H = 1350;
 
-const FOTO_SIZE = 535;
+// círculo da foto
+const FOTO_SIZE = 545;
 const FOTO_X = (CANVAS_W - FOTO_SIZE) / 2;
-const FOTO_Y = 260;
+const FOTO_Y = 254;
 
+// posição do nome
 const NOME_Y = 910;
 const NOME_MAX_FONT = 64;
 const NOME_MIN_FONT = 36;
-const NOME_COLOR = "#1f2937"; // cinza-escuro
+const NOME_COLOR = "#1f2937"; // cinza escuro
 
-// 🔥 Fonte padrão que sempre existe
-const NOME_FONT = "Arial, Helvetica, sans-serif";
+// =============================================================
 
-// ========================================================================
-
-async function gerarFlyer({ nome, fotoBufferOrPath, outPath }) {
-  if (!fotoBufferOrPath) {
+async function gerarFlyer({ nome, fotoBufferOrPath, outPath = null }) {
+  if (!nome) throw new Error("É necessário fornecer um nome.");
+  if (!fotoBufferOrPath)
     throw new Error("É necessário fornecer fotoBuffer ou fotoPath");
-  }
 
   // carrega foto
   let fotoBuffer;
@@ -49,21 +48,29 @@ async function gerarFlyer({ nome, fotoBufferOrPath, outPath }) {
     .png()
     .toBuffer();
 
-  // calcula tamanho da fonte
+  // calcula tamanho da fonte dinamicamente
   const idealByLength = Math.max(
     NOME_MIN_FONT,
     Math.min(NOME_MAX_FONT, Math.floor(700 / Math.max(nome.length, 10)))
   );
 
-  // gera SVG do nome
+  // carrega a fonte como base64
+  const fontPath = path.join(__dirname, "assets", "fonts", "Poppins-Bold.ttf");
+  const fontData = fs.readFileSync(fontPath).toString("base64");
+
+  // SVG do nome com a fonte embutida
   const svgNome = Buffer.from(
     `<svg width="${CANVAS_W}" height="${CANVAS_H}">
       <style>
+        @font-face {
+          font-family: 'PoppinsBold';
+          src: url('data:font/ttf;base64,${fontData}') format('truetype');
+          font-weight: bold;
+        }
         .nome {
-          font-family: ${NOME_FONT};
-          font-weight: 700;
+          font-family: 'PoppinsBold';
+          font-weight: bold;
           fill: ${NOME_COLOR};
-          text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
       </style>
       <text x="${CANVAS_W / 2}" y="${NOME_Y}" font-size="${idealByLength}" class="nome"
@@ -73,9 +80,17 @@ async function gerarFlyer({ nome, fotoBufferOrPath, outPath }) {
     </svg>`
   );
 
+  // caminho do flyer base
+  const base = path.join(__dirname, "assets", "fotos", "flyer_base.png");
+  console.log("🛠️ Caminho do flyer_base:", base);
+
+  // checa se o arquivo existe
+  if (!fs.existsSync(base)) {
+    throw new Error(`⚠️ Arquivo flyer_base.png não encontrado em: ${base}`);
+  }
+
   // compõe flyer final
-  const base = path.resolve(__dirname, "assets/flyer_base.png");
-  const finalBuffer = await sharp(base)
+  let finalBuffer = await sharp(base)
     .composite([
       { input: fotoCircular, left: Math.round(FOTO_X), top: Math.round(FOTO_Y) },
       { input: svgNome, left: 0, top: 0 },
@@ -83,10 +98,13 @@ async function gerarFlyer({ nome, fotoBufferOrPath, outPath }) {
     .png()
     .toBuffer();
 
+  // salva em disco se pedir
   if (outPath) {
+    const outDir = path.dirname(outPath);
+    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(outPath, finalBuffer);
-    return outPath;
   }
+
   return finalBuffer;
 }
 
@@ -100,17 +118,17 @@ function escapeXml(unsafe) {
 
 module.exports = { gerarFlyer };
 
-// === TESTE LOCAL =========================================================
+// === TESTE LOCAL =============================================
 if (require.main === module) {
   (async () => {
     try {
-      const out = await gerarFlyer({
+      const out = path.resolve(__dirname, "out/flyer_teste.png");
+      await gerarFlyer({
         nome: "Maria Clara",
         fotoBufferOrPath: path.resolve(__dirname, "assets/fotos/exemplo.jpg"),
-        outPath: path.resolve(__dirname, "out/flyer_final.png"),
+        outPath: out,
       });
-
-      console.log("✅ Flyer gerado:", out);
+      console.log("✅ Flyer gerado em:", out);
     } catch (err) {
       console.error("❌ Erro ao gerar flyer:", err);
     }
