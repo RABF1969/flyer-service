@@ -74,9 +74,10 @@ async function gerarFlyer({ nome, fotoBufferOrPath, outPath = null }) {
         }
       </style>
       <text x="${CANVAS_W / 2}" y="${NOME_Y}" font-size="${idealByLength}" class="nome"
-        text-anchor="middle" dominant-baseline="middle">
-        ${escapeXml(nome)}
-      </text>
+  text-anchor="middle" dominant-baseline="middle">
+  <![CDATA[${nome}]]>
+</text>
+
     </svg>`
   );
 
@@ -124,8 +125,8 @@ if (require.main === module) {
     try {
       const out = path.resolve(__dirname, "out/flyer_teste.png");
       await gerarFlyer({
-        nome: "Maria Clara",
-        fotoBufferOrPath: path.resolve(__dirname, "assets/fotos/exemplo.jpg"),
+        nome: "José Antônio Ávila",   // 👈 coloca acento aqui para testar
+        fotoBufferOrPath: path.resolve(__dirname, "testes/exemplo.jpg"),
         outPath: out,
       });
       console.log("✅ Flyer gerado em:", out);
@@ -134,3 +135,4 @@ if (require.main === module) {
     }
   })();
 }
+
